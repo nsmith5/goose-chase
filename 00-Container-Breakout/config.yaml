@@ -1,0 +1,82 @@
+variant: fcos
+version: 1.2.0
+passwd:
+  users:
+  - name: goose
+    password_hash: $y$j9T$c//QaWmBO6mvOTG7NcStD1$ankbZ629OIKjOzYy8DEwcsoA/28/3OQrK19.MS9vqKD
+systemd:
+  units:
+  - name: k3s.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Lightweight Kubernetes
+      Documentation=https://k3s.io
+      After=network-online.target
+
+      [Install]
+      WantedBy=multi-user.target
+
+      [Service]
+      Type=notify
+      KillMode=process
+      Delegate=yes
+      LimitNOFILE=infinity
+      LimitNPROC=infinity
+      LimitCORE=infinity
+      TasksMax=infinity
+      TimeoutStartSec=0
+      Restart=always
+      RestartSec=5s
+      ExecStartPre=-/sbin/modprobe br_netfilter
+      ExecStartPre=-/sbin/modprobe overlay
+      ExecStart=/usr/local/bin/k3s server --write-kubeconfig-mode=0644
+storage:
+  trees:
+  - local: manifests
+    path: /var/lib/rancher/k3s/server/manifests
+  files:
+  - path: /etc/profile.d/systemd-pager.sh
+    mode: 0644
+    contents:
+      inline: |
+        # Tell systemd to not use a pager when printing information
+        export SYSTEMD_PAGER=cat
+  - path: /etc/sysctl.d/20-silence-audit.conf
+    mode: 0644
+    contents:
+      inline: |
+        # Raise console message logging level from DEBUG (7) to WARNING (4)
+        # to hide audit messages from the interactive console
+        kernel.printk=4
+  - path: /etc/hostname
+    contents:
+      inline: |
+        garden
+    mode: 0644
+  - path: /usr/local/bin/k3s
+    contents:
+      source: https://github.com/rancher/k3s/releases/download/v1.19.4%2Bk3s1/k3s
+      verification:
+        hash: sha256-8aed3abe7af30adbe44b70a6a774b205d1c403c3b35fcd4aa558b3cb413fcba5
+    mode: 0755
+  - path: /etc/ssh/sshd_config.d/20-enabled-passwords.conf
+    contents:
+      inline: |
+        PasswordAuthentication yes
+    mode: 0644
+  - path: /usr/local/bin/kubectl
+    contents:
+      source: https://storage.googleapis.com/kubernetes-release/release/v1.19.0/bin/linux/amd64/kubectl
+      verification:
+        hash: sha256-79bb0d2f05487ff533999a639c075043c70a0a1ba25c1629eb1eef6ebe3ba70f
+    mode: 0755
+  links:
+  - path: /home/goose/.kube/config
+    overwrite: true
+    target: /etc/rancher/k3s/k3s.yaml
+    hard: false
+    user:
+      name: goose
+    group:
+      name: goose
